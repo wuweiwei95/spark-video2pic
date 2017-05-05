@@ -67,7 +67,7 @@ public class sparkVideo2Pic {
         long startTime = System.currentTimeMillis();
         System.out.println("Process files number is  " + videosContentsRDD.count());
 
-        // distribute video split
+        // distribute video process
 
         // get the process time
         long endTime   = System.currentTimeMillis();
