@@ -4,6 +4,8 @@
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.*;
@@ -23,6 +25,8 @@ import org.bytedeco.javacpp.opencv_objdetect.CascadeClassifier;
 import org.bytedeco.javacv.*;
 
 import javax.imageio.ImageIO;
+
+import static java.lang.Thread.sleep;
 
 public class sparkVideo2Pic {
 
@@ -64,17 +68,35 @@ public class sparkVideo2Pic {
 
 
     }
-    public static void main(String[] args) {
+    public static void main(String[] args) throws InterruptedException {
 
         SparkConf conf = new SparkConf().setAppName("Video split");
         JavaSparkContext jsc = new JavaSparkContext(conf);
         String outputPath = "hdfs://master:9000/output/";
+        List<String> fileList = new ArrayList<String>();
+
+        try {
+            FileSystem fs = FileSystem.get(new Configuration());
+            FileStatus[] status = fs.listStatus(new Path("hdfs://master:9000/videos/"));
+            for (FileStatus fileStat : status) {
+                if (fileStat.isDirectory()) {
+
+                } else {
+                    fileList.add(fileStat.getPath().toString());
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+
 
         // convert input path into RDD, wholeTextFiles will read all the video file into memory
-        JavaRDD<String> videoNamesRDD = jsc.textFile("hdfs://master:9000/videos/");
+        //JavaRDD<String> videoNamesRDD = jsc.textFile("hdfs://master:9000/videos/");
+        JavaRDD<String> videoNamesRDD = jsc.parallelize(fileList,3);
         long startTime = System.currentTimeMillis();
-        System.out.println("Process files number is  " + videoNamesRDD.count());
-
+        //System.out.println("####### Process files number is  " + videoNamesRDD.count());
+        //System.out.println("####### partition is " + videoNamesRDD.getNumPartitions());
         // distribute video process
         videoNamesRDD.foreach(new VoidFunction<String>() {
             public void call (String videoFile) throws IOException {
@@ -84,10 +106,12 @@ public class sparkVideo2Pic {
         // get the process time
         long endTime   = System.currentTimeMillis();
         long totalTime = endTime - startTime;
-        System.out.println("Video decode take time " + totalTime/1000 + "s");
+        System.out.println("####### Video decode take time " + totalTime/1000 + "s");
 
+        while(true){
+        }
         // done, stop spark
-        jsc.stop();
+        //jsc.stop();
 
     }
 
