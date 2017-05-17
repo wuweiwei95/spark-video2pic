@@ -74,6 +74,7 @@ public class sparkVideo2Pic {
         JavaSparkContext jsc = new JavaSparkContext(conf);
         String outputPath = "hdfs://master:9000/output/";
         List<String> fileList = new ArrayList<String>();
+        String filenameRDDPath = "hdfs://master:9000/filenamelist";
 
         try {
             FileSystem fs = FileSystem.get(new Configuration());
@@ -90,15 +91,17 @@ public class sparkVideo2Pic {
         }
 
 
-
-        // convert input path into RDD, wholeTextFiles will read all the video file into memory
+        // convert input path into RDD
         //JavaRDD<String> videoNamesRDD = jsc.textFile("hdfs://master:9000/videos/");
         JavaRDD<String> videoNamesRDD = jsc.parallelize(fileList,3);
+        videoNamesRDD.saveAsTextFile(filenameRDDPath);
+        JavaRDD<String> filenameRDD = jsc.textFile(filenameRDDPath);
+
         long startTime = System.currentTimeMillis();
         //System.out.println("####### Process files number is  " + videoNamesRDD.count());
         //System.out.println("####### partition is " + videoNamesRDD.getNumPartitions());
         // distribute video process
-        videoNamesRDD.foreach(new VoidFunction<String>() {
+        filenameRDD.foreach(new VoidFunction<String>() {
             public void call (String videoFile) throws IOException {
                 video2Pic(videoFile, outputPath);
             }
@@ -107,6 +110,14 @@ public class sparkVideo2Pic {
         long endTime   = System.currentTimeMillis();
         long totalTime = endTime - startTime;
         System.out.println("####### Video decode take time " + totalTime/1000 + "s");
+
+        // delete the filename list file
+        try {
+            FileSystem fs = FileSystem.get(new Configuration());
+            fs.delete(new Path(filenameRDDPath),true);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
 
         while(true){
         }
