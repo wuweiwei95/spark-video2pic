@@ -70,15 +70,23 @@ public class sparkVideo2Pic {
     }
     public static void main(String[] args) throws InterruptedException {
 
-        SparkConf conf = new SparkConf().setAppName("Video split");
-        JavaSparkContext jsc = new JavaSparkContext(conf);
-        String outputPath = "hdfs://master:9000/output/";
-        List<String> fileList = new ArrayList<String>();
-        String filenameRDDPath = "hdfs://master:9000/filenamelist";
+        if (args.length < 2) {
+            System.err.println("Usage: sparkVideo2Pic <input-videos-path> <output-pics-path>\n\n");
+            System.exit(1);
+        }
+        String inputPath = args[0];
+        String outputPath = args[1];
 
+        SparkConf conf = new SparkConf().setAppName("Video-split");
+        JavaSparkContext jsc = new JavaSparkContext(conf);
+
+        List<String> fileList = new ArrayList<String>();
+        //String filenameRDDPath = "hdfs://master:9000/filenamelist";
+
+        String filenameRDDPath = outputPath + "/filenamelist";
         try {
             FileSystem fs = FileSystem.get(new Configuration());
-            FileStatus[] status = fs.listStatus(new Path("hdfs://master:9000/videos/"));
+            FileStatus[] status = fs.listStatus(new Path(inputPath));
             for (FileStatus fileStat : status) {
                 if (fileStat.isDirectory()) {
 
@@ -90,13 +98,13 @@ public class sparkVideo2Pic {
             e.printStackTrace();
         }
 
-
         // convert input path into RDD
         //JavaRDD<String> videoNamesRDD = jsc.textFile("hdfs://master:9000/videos/");
         JavaRDD<String> videoNamesRDD = jsc.parallelize(fileList,3);
         videoNamesRDD.saveAsTextFile(filenameRDDPath);
         JavaRDD<String> filenameRDD = jsc.textFile(filenameRDDPath);
 
+        filenameRDD.cache();
         long startTime = System.currentTimeMillis();
         //System.out.println("####### Process files number is  " + videoNamesRDD.count());
         //System.out.println("####### partition is " + videoNamesRDD.getNumPartitions());
