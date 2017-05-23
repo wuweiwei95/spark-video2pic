@@ -47,7 +47,7 @@ public class sparkVideo2Pic {
         os.close();
     }
 
-    public static void video2Pic(String inputFilePath, String outputPath) throws IOException {
+    public static void video2Pic(String inputFilePath, String outputPath, Integer shotsPerSecond) throws IOException {
         System.out.println("filename is " + inputFilePath);
         System.out.println("output file path is " + outputPath);
 
@@ -72,7 +72,7 @@ public class sparkVideo2Pic {
         long frameLength = grabber.getLengthInFrames();
 
         // To grab frames per 0.5 seconds
-        for (int i = 1; i < frameLength; i += grabber.getFrameRate() / 2) {
+        for (int i = 1; i < frameLength; i += grabber.getFrameRate() / shotsPerSecond) {
             Java2DFrameConverter converter = new Java2DFrameConverter();
             grabber.setFrameNumber(i);
             tmpPicFile = "/tmp/" + inputName + "-" + "frame" + i + ".jpg";
@@ -80,7 +80,7 @@ public class sparkVideo2Pic {
             // TODO write to HDFS
             ImageIO.write(bi, "jpg", new File(tmpPicFile));
 
-            copyFile("file://" + tmpPicFile, outputPath + inputName + "-" + "frame" + i + ".jpg");
+            //copyFile("file://" + tmpPicFile, outputPath + inputName + "-" + "frame" + i + ".jpg");
         }
 
         // To know number for each video
@@ -95,12 +95,18 @@ public class sparkVideo2Pic {
 
     public static void main(String[] args) throws InterruptedException {
 
-        if (args.length < 2) {
-            System.err.println("Usage: sparkVideo2Pic <input-videos-path> <output-pics-path>\n\n");
+        if (args.length < 3) {
+            System.err.println("Usage: sparkVideo2Pic <input-videos-path> <output-pics-path> <shots-per-second>\n\n");
             System.exit(1);
         }
         String inputPath = args[0];
         String outputPath = args[1];
+        int shotsPerSecond = Integer.parseInt(args[2]);
+
+        if((shotsPerSecond < 1) || (shotsPerSecond > 10)){
+            System.err.println("Usage: shotsPerSecond must >= 1 and <= 10\n\n");
+            System.exit(1);
+        }
 
         SparkConf conf = new SparkConf().setAppName("Video-split");
         JavaSparkContext jsc = new JavaSparkContext(conf);
@@ -136,7 +142,7 @@ public class sparkVideo2Pic {
         // distribute video process
         filenameRDD.foreach(new VoidFunction<String>() {
             public void call (String videoFile) throws IOException {
-                video2Pic(videoFile, outputPath);
+                video2Pic(videoFile, outputPath, shotsPerSecond);
             }
         });
         // get the process time
